@@ -2,13 +2,25 @@
 
 #define Serial SERIAL_PORT_USBVIRTUAL
 
-#define test_pin 10
+#define test_pin0 5
+#define test_pin1 6
+#define led_pin 13
 
 using namespace std;
 
 void setup() {
-  pinMode(test_pin, OUTPUT);
-  digitalWrite(test_pin, LOW);
+  pinMode(test_pin0, OUTPUT);
+  digitalWrite(test_pin0, LOW);
+  pinMode(test_pin1, OUTPUT);
+  digitalWrite(test_pin1, LOW);
+  pinMode(led_pin, OUTPUT);
+  digitalWrite(led_pin, LOW
+  );
+  while(!Serial);
+  Serial.println("Drip test\nt,N_SETS,DROPS_PER_SET,MS_ON,MS_OFF\n");
+  Serial.println("Purge nozzle\np,PURGE_TIME_MS\n");
+  Serial.println("Light test\nl,N_SETS,DROPS_PER_SET,MS_ON,MS_OFF,MS_TO_FLASH\n\n");
+  Serial.println("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n");
 }
 
 void loop() {
@@ -36,16 +48,38 @@ void loop() {
           nozzle_purge(args[0]);
           break;
         }
+        case 'l':{
+          // Drip test
+          // l,N_SETS,DROPS_PER_SET,MS_ON,MS_OFF,MS_TO_FLASH
+          vector<int32_t> args;
+          parse_inputs(serial_data, args);
+          flash_test(args[0], args[1], args[2], args[3], args[4]);
+          break;
+        }
+        case 's':{
+          custom();
+          break;
+        }
       }
+      Serial.println("DONE");
     }
   }
 }
 
+void custom()
+{
+//  digitalWrite(test_pin, HIGH);
+//  delay(t_on_ms);
+//  digitalWrite(test_pin, LOW);
+}
+
 void nozzle_purge(uint32_t t_on_ms)
 {
-  digitalWrite(test_pin, HIGH);
+  digitalWrite(test_pin0, HIGH);
+  digitalWrite(test_pin1, HIGH);
   delay(t_on_ms);
-  digitalWrite(test_pin, LOW);
+  digitalWrite(test_pin0, LOW);
+  digitalWrite(test_pin1, LOW);
 }
 
 void drip_test(uint32_t n_sets, uint32_t drips_per_set, uint32_t t_on_ms, uint32_t t_off_ms)
@@ -55,11 +89,42 @@ void drip_test(uint32_t n_sets, uint32_t drips_per_set, uint32_t t_on_ms, uint32
   {
     for(uint32_t drip_num = 0; drip_num < drips_per_set; drip_num++)
     {
-      digitalWrite(test_pin, HIGH);
-      delay(t_on_ms);
-      digitalWrite(test_pin, LOW);
+      digitalWrite(test_pin0, HIGH);
+      digitalWrite(test_pin1, HIGH);
+      if (drip_num == 0) delay(t_on_ms + 1);
+      else delay(t_on_ms);
+      digitalWrite(test_pin0, LOW);
+      digitalWrite(test_pin1, LOW);
       delay(t_off_ms);
     }
+    delay(t_between_sets_ms);
+  }
+}
+
+void flash_test(uint32_t n_sets, uint32_t drips_per_set, uint32_t t_on_ms, uint32_t t_off_ms, uint32_t t_flash_ms)
+{
+  uint16_t t_between_sets_ms = 200;
+  for(uint32_t set_num = 0; set_num < n_sets; set_num++)
+  {
+    uint32_t tStart = millis();
+    for(uint32_t drip_num = 0; drip_num < drips_per_set; drip_num++)
+    {
+      digitalWrite(test_pin0, HIGH);
+      digitalWrite(test_pin1, HIGH);
+      if (drip_num == 0) delay(t_on_ms);
+      else delay(t_on_ms);
+      digitalWrite(test_pin0, LOW);
+      digitalWrite(test_pin1, LOW);
+      delay(t_off_ms);
+    }
+    if (millis() > (tStart + t_flash_ms))
+    {
+      Serial.println("ERROR flash delay too short");
+    }
+    while (millis() < (tStart + t_flash_ms)) {};
+    digitalWrite(led_pin, HIGH);
+    delay(2);
+    digitalWrite(led_pin, LOW);
     delay(t_between_sets_ms);
   }
 }
